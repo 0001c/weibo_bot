@@ -1,0 +1,10 @@
+
+services:
+  weibo-spider:
+    build: .
+    container_name: weibo-spider
+    volumes:
+      - .:/app
+    environment:
+      - PYTHONUNBUFFERED=1
+    restart: unless-stopped
