@@ -24,7 +24,7 @@
 
 1. **克隆项目**：
    ```bash
-   git clone <项目仓库地址>
+   git clone git@github.com:0001c/weibo_bot.git
    cd weibo-spider
    ```
 
