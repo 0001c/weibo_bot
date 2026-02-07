@@ -1,13 +1,15 @@
 from time import sleep
+import time
 import requests
 import json
 import os
 from ai_utils import generate_response
 import json, requests, re
+from log_manager import add_log
 
 
 def get_header():
-    with open("weibo_cookie.json",'r') as f:
+    with open(r"Config\weibo_cookie.json",'r') as f:
         header=json.loads(f.read())
         cookie = header['Cookie']
         header["x-xsrf-token"] = re.findall(r'XSRF-TOKEN=([^;]+)', cookie)[0]
@@ -23,10 +25,19 @@ def get_name(uid):
         return cache[uid]
     try:
         url = f"https://weibo.com/ajax/profile/info?custom={uid}"
-        name = json.loads(requests.get(url=url,headers=get_header()).content.decode('utf-8'))['data']['user']['screen_name']
+        resp = requests.get(url=url,headers=get_header())
+        if resp.status_code != 200:
+            add_log('ERROR',f'获取用户{uid}的昵称时出错，状态码：{resp.status_code}，检查cookie是否过期')
+            print(f'获取用户{uid}的昵称时出错，状态码：{resp.status_code}，检查cookie是否过期')
+            name = uid
+            return name
+        name = json.loads(resp.content.decode('utf-8'))['data']['user']['screen_name']
+        print(f'获取用户{uid}的昵称：{name}')
     except:
+        print(f'获取用户{uid}的昵称时出错')
         name = uid
     if name == '':
+        print(f'获取用户{uid}的昵称时为空')
         name = uid
     # 缓存昵称
     cache[uid] = name
@@ -35,7 +46,7 @@ def get_name(uid):
 
 # 初始化已有的mid
 def get_mids(uid):
-    file_path = 'weibo_mid_'+get_name(uid)+uid+'.json'
+    file_path = r'Cache\weibo_mid_'+get_name(uid)+uid+'.json'
     if not os.path.exists(file_path):
         # 创建空的JSON文件
         with open(file_path,'w') as f:
@@ -49,12 +60,14 @@ def get_mids(uid):
         mids_dict = {'nickname':get_name(uid),
                     'uid':uid,'mids':[],'max_id':0}
     if len(mids) == 0:
-        print('初始化mid')
+        add_log('INFO',f'初始化mid，uid：{uid}，昵称：{get_name(uid)}')
+        print(f'初始化mid，uid：{uid}，昵称：{get_name(uid)}')
         url = f'https://weibo.com/ajax/statuses/mymblog?uid={uid}&page=1&feature=0'
         try:
             resp = json.loads(requests.get(url=url,headers=get_header()).content.decode('utf-8'))
         except:
-            print('请检查uid是否正确')
+            add_log('ERROR',f'初始化mid时出错，uid：{uid}，昵称：{get_name(uid)}')
+            print(f'初始化mid时出错，uid：{uid}，昵称：{get_name(uid)}')
             reset_uid(uid,'0')
             return mids_dict
         list = resp['data']['list']
@@ -67,15 +80,16 @@ def get_mids(uid):
                     'uid':uid,
                     "mids": mids,
                     'max_id': mid}
-        print(f'初始化mid完成，最新mid：{mids_dict["max_id"]}')
+        add_log('INFO',f'初始化mid完成，最新帖子mid：{mids_dict["max_id"]}')
         with open(file_path,'w') as f:
             json.dump(mids_dict,f,ensure_ascii=False,indent=2)
     else:
-        print(f'{get_name(uid)}已存在数据')
+        add_log('INFO',f'{get_name(uid)}已存在数据')
     return mids_dict
 
 # 获取最新的mid
 def get_new_mid(uid):
+    file_path = r'Cache\weibo_mid_'+get_name(uid)+uid+'.json'
     mids_dict = get_mids(uid)
     mids = mids_dict['mids']
     max_id = mids_dict['max_id']
@@ -84,31 +98,32 @@ def get_new_mid(uid):
     try:
         resp = json.loads(requests.get(url=url,headers=get_header()).content.decode('utf-8'))
     except:
-        print('请检查uid是否正确')
+        add_log('ERROR',f'初始化mid时出错，uid：{uid}，昵称：{get_name(uid)}')
         reset_uid(uid,'0')
         return None
     list = resp['data']['list']
-    print('正在检索是否有更新')
+    add_log('INFO',f'正在检索是否有更新，uid：{uid}，昵称：{get_name(uid)}，当前时间：{time.strftime("%Y-%m-%d %H:%M:%S", time.localtime())}')
     # 只检查最新的5条微博即可
     for item in list[:5]:
         sleep(1)
         mid = item['id']
         if mid not in mids and mid > max_id:
             create_time = item['created_at']
+            add_log('INFO',f'发现新的mid：{mid},创建时间：{create_time}')
             print(f'发现新的mid：{mid},创建时间：{create_time}')
             mids_dict['mids'].append(mid)
             
-            with open('weibo_mid_'+get_name(uid)+uid+'.json','w') as f:
+            with open(file_path,'w') as f:
                 mids_dict = {'nickname':get_name(uid),
                             'uid':uid,
                             "mids": mids,
                             'max_id': mid}
                 json.dump(mids_dict,f,ensure_ascii=False,indent=2)
-            print(f'更新mid完成，最新mid：{mids_dict["max_id"]}')
+            add_log('INFO',f'更新mid完成，最新帖子mid：{mids_dict["max_id"]}，当前时间：{time.strftime("%Y-%m-%d %H:%M:%S", time.localtime())}')
             
             return mid
     else:
-        print('没有新的微博内容')
+        add_log('INFO',f'没有新的微博内容，uid：{uid}，昵称：{get_name(uid)}，当前时间：{time.strftime("%Y-%m-%d %H:%M:%S", time.localtime())}')
     
 
 
@@ -122,14 +137,15 @@ def get_context(mid):
 # 调用AI生成回复
 def generate_weibo_response(mid):
     context = get_context(mid)
-    print(f'微博内容：{context}')
+    add_log('INFO',f'微博内容：{context}')
     # 调用AI生成回复
     ai_response = generate_response(context)
-    print(f'AI生成的回复：{ai_response}')
+    add_log('INFO',f'AI生成的回复：{ai_response}')
     return ai_response
 
 def post_response(mid, comment=''):
-    print(f'正在回复：{mid}')
+
+    add_log('INFO',f'正在回复{nickname}({uid})：{mid}')
     url = f'https://weibo.com/ajax/comments/create'
     # 如果没有提供comment，则调用AI生成回复
     if not comment:
@@ -149,14 +165,14 @@ def post_response(mid, comment=''):
         # print(f'响应内容：{response.content.decode("utf-8")}')
         resp = json.loads(response.content.decode('utf-8'))
         if resp.get('ok') == 1:
-            print(f'成功回复mid：{mid}')
+            add_log('INFO',f'成功回复mid：{mid}')
         else:
-            print(f'回复mid：{mid}失败，错误信息：{resp.get("msg", "未知错误")}')
+            add_log('ERROR',f'回复mid：{mid}失败，错误信息：{resp.get("msg", "未知错误")}')
     except Exception as e:
-        print(f'回复mid：{mid}时发生错误：{str(e)}')
+        add_log('ERROR',f'回复mid：{mid}时发生错误：{str(e)}')
 
 def get_config():
-    with open('config.json','r', encoding='utf-8') as f:
+    with open(r'Config\config.json','r', encoding='utf-8') as f:
         config = json.load(f)
     return config
 
@@ -166,7 +182,7 @@ def reset_uid(uid,enabled):
     save_config(config)
     
 def save_config(config):
-    with open('config.json','w', encoding='utf-8') as f:
+    with open(r'Config\config.json','w', encoding='utf-8') as f:
         json.dump(config,f,ensure_ascii=False,indent=2)
 
 
@@ -176,12 +192,18 @@ def main():
         uid_list = config['uid']
 
         for uid in uid_list.keys():
-            enabled = uid_list[uid]
+            enabled = True if uid_list[uid] == "1" else False
+            
             print(f'用户{uid}的状态：{enabled}')
-            nickname = get_name(uid)
-            print(f'正在处理用户{nickname}({uid})')
-            if enabled == "1":
+            add_log('INFO',f'用户{uid}的状态：{enabled}')
+            
+            
+            if enabled:
+                global nickname
+                nickname = get_name(uid)
+                add_log('INFO',f'正在处理用户{nickname}({uid})')
                 if nickname == uid:
+                    add_log('INFO',f'用户{nickname}({uid})的昵称与uid相同，已禁用')
                     print(f'用户{nickname}({uid})的昵称与uid相同，已禁用')
                     reset_uid(uid,'0')
                 else:
@@ -192,6 +214,7 @@ def main():
                         post_response(mid)
                 
         # 休眠
+        add_log('INFO',f'休眠{config["sleep_time"]}秒')
         print(f'休眠{config["sleep_time"]}秒')
         sleep(config['sleep_time'])
 

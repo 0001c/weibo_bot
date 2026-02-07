@@ -10,33 +10,26 @@ ENV_FILE = '.env'
 REQUIREMENTS_FILE = 'requirements.txt'
 
 # 安装依赖项
-def install_dependencies():
+def create_docs():
     """
-    安装依赖项
+    创建示例文档
     """
-    print('正在检查依赖项...')
+    with open('config.json', 'w', encoding='utf-8') as f:
+        json.dump({
+            "uid": {
+                "1234567890": "1",
+                "0987654321": "0"
+            }
+        }, f, ensure_ascii=False, indent=2)
     
-    # 检查requirements.txt文件是否存在
-    if not os.path.exists(REQUIREMENTS_FILE):
-        print(f'警告：{REQUIREMENTS_FILE} 文件不存在，跳过依赖项安装')
-        return
+    with open(".env.example", 'w', encoding='utf-8') as f:
+        f.write("ARK_API_KEY=your_ark_api_key_here\n")
     
-    try:
-        # 安装依赖项
-        print('正在安装依赖项...')
-        subprocess.run(
-            [sys.executable, '-m', 'pip', 'install', '-r', REQUIREMENTS_FILE],
-            check=True,
-            stdout=subprocess.PIPE,
-            stderr=subprocess.PIPE,
-            text=True
-        )
-        print('依赖项安装成功')
-    except subprocess.CalledProcessError as e:
-        print(f'错误：安装依赖项时发生错误：{e.stderr}')
-        print('请手动安装依赖项后重试')
-    except Exception as e:
-        print(f'错误：检查依赖项时发生错误：{e}')
+    with open("weibo_cookie.json.example", 'w', encoding='utf-8') as f:
+        f.write("""{
+                "Cookie": "your_weibo_cookie_here",
+                "User-Agent": "your_user_agent_here"
+            }""")
 
 # 检查配置文件是否存在且有效
 def check_config():
@@ -108,15 +101,11 @@ def start_config_server():
     """
     print('正在启动配置服务器...')
     print('请在浏览器中完成配置')
-    print('配置服务器将保持运行，您可以随时修改配置并重启爬虫')
-    
+    print('\n提示：')
     # 启动配置服务器
-    config_server_process = subprocess.Popen([sys.executable, 'config_server.py'])
+    import config_server
+    config_server.start_config_server()
     
-    # 不等待用户输入，让配置服务器一直运行
-    print('配置服务器已启动，您可以通过配置页面上的按钮启动或重启爬虫')
-    
-    # 注意：这里不再停止配置服务器，它会一直运行直到用户手动关闭
 
 # 运行爬虫脚本
 # def run_spider():
@@ -133,8 +122,8 @@ def main():
     """
     print('=== 启动脚本 ===')
     
-    # 安装依赖项
-    # install_dependencies()
+    # 创建示例文档
+    create_docs()
     
     # 检查配置
     if check_config():
@@ -144,11 +133,7 @@ def main():
     else:
         print('配置文件无效，需要进行配置')
         start_config_server()
-        print('\n提示：')
-        print('1. 配置服务器已启动，您可以在浏览器中进行配置')
-        print('2. 配置完成后，点击"启动爬虫"按钮启动爬虫服务')
-        print('3. 后续如需修改配置，可直接访问配置页面进行修改并重启爬虫')
-        print('4. 配置服务器默认地址：http://localhost:18002')
+
 
 if __name__ == '__main__':
     main()

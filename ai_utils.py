@@ -3,8 +3,8 @@ from dotenv import load_dotenv
 from openai import OpenAI
 import json
 
-# 加载.env文件中的环境变量
-load_dotenv()
+# 加载.env文件中的环境变量,文件路径为Config\.env
+load_dotenv(r'Config\.env')
 
 # 从环境变量中获取您的API KEY，配置方法见：https://www.volcengine.com/docs/82379/1399008
 api_key = os.getenv('ARK_API_KEY')
@@ -16,7 +16,7 @@ client = OpenAI(
 )
 
 # 从config.json中读取prompt
-with open('config.json','r', encoding='utf-8') as f:
+with open(r'Config\config.json','r', encoding='utf-8') as f:
     config = json.load(f)
     prompt = config['prompt']
 

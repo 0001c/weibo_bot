@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>日志管理</title>
+    <link rel="stylesheet" href="/static/css/style.css">
+</head>
+<body>
+    <div class="logs-container">
+        <div class="logs-header">
+            <h1>日志管理</h1>
+            <div class="header-buttons">
+                <button id="config-btn">返回配置</button>
+            </div>
+        </div>
+        
+        <div class="logs-filters">
+            <input type="text" id="log-search" placeholder="搜索日志内容">
+            <select id="log-level">
+                <option value="all">所有级别</option>
+                <option value="info">INFO</option>
+                <option value="warning">WARNING</option>
+                <option value="error">ERROR</option>
+            </select>
+            <button id="clear-logs">清空日志</button>
+        </div>
+        
+        <div class="logs-content" id="logs-content">
+            <!-- 日志内容将通过JavaScript动态添加 -->
+            <div class="log-item">
+                <div class="log-time">加载中...</div>
+                <div class="log-message">正在获取日志数据，请稍候...</div>
+            </div>
+        </div>
+    </div>
+    
+    <script src="/static/js/logs.js"></script>
+</body>
+</html>

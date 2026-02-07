@@ -5,11 +5,39 @@ import os
 import webbrowser
 from urllib.parse import parse_qs, urlparse
 import time
+import threading
+
+# 模板文件路径
+TEMPLATE_DIR = os.path.join(os.path.dirname(__file__), 'templates')
+# 静态文件路径
+STATIC_DIR = os.path.join(os.path.dirname(__file__), 'static')
+print(f"STATIC_DIR: {STATIC_DIR}")
+print(f"TEMPLATE_DIR: {TEMPLATE_DIR}")
+
+# 从log_manager.py导入日志相关的函数
+from log_manager import add_log, get_all_logs, get_new_logs, clear_logs
 
 # 配置文件路径
-CONFIG_FILE = 'config.json'
-ENV_FILE = '.env'
-COOKIE_FILE = 'weibo_cookie.json'
+CONFIG_FILE = 'Config/config.json'
+ENV_FILE = 'Config/.env'
+COOKIE_FILE = 'Config/weibo_cookie.json'
+
+# 读取模板文件
+def read_template(template_name):
+    """
+    读取HTML模板文件
+    
+    Args:
+        template_name: 模板文件名
+        
+    Returns:
+        str: 模板文件内容
+    """
+    template_path = os.path.join(TEMPLATE_DIR, template_name)
+    if os.path.exists(template_path):
+        with open(template_path, 'r', encoding='utf-8') as f:
+            return f.read()
+    return ''
 
 # 读取配置文件
 def read_config():
@@ -86,9 +114,11 @@ class ConfigHandler(http.server.SimpleHTTPRequestHandler):
             
             # 生成用户ID列表HTML
             uid_list_html = ''
-            for uid in config.get('uid', {}).keys():
+            for uid, enabled in config.get('uid', {}).items():
+                checked = 'checked' if enabled == '1' else ''
                 uid_list_html += f'''
                 <div class="uid-item">
+                    <input type="checkbox" class="uid-enabled" data-uid="{uid}" {checked}>
                     <input type="text" value="{uid}" placeholder="请输入用户ID">
                     <button type="button" onclick="removeUid(this)">删除</button>
                 </div>
@@ -96,6 +126,7 @@ class ConfigHandler(http.server.SimpleHTTPRequestHandler):
             if not uid_list_html:
                 uid_list_html = f'''
                 <div class="uid-item">
+                    <input type="checkbox" class="uid-enabled" checked>
                     <input type="text" placeholder="请输入用户ID">
                     <button type="button" onclick="removeUid(this)">删除</button>
                 </div>
@@ -124,291 +155,80 @@ class ConfigHandler(http.server.SimpleHTTPRequestHandler):
                 prompt = ''
                 sleep_time = 10
             
-            # 生成HTML内容
-            html = '''
-            <!DOCTYPE html>
-            <html lang="zh-CN">
-            <head>
-                <meta charset="UTF-8">
-                <meta name="viewport" content="width=device-width, initial-scale=1.0">
-                <title>数据配置</title>
-                <style>
-                    body {
-                        font-family: Arial, sans-serif;
-                        margin: 20px;
-                        padding: 20px;
-                        background-color: #f5f5f5;
-                    }
-                    .container {
-                        max-width: 800px;
-                        margin: 0 auto;
-                        background-color: white;
-                        padding: 30px;
-                        border-radius: 8px;
-                        box-shadow: 0 2px 10px rgba(0,0,0,0.1);
-                    }
-                    h1 {
-                        color: #333;
-                        text-align: center;
-                    }
-                    h2 {
-                        color: #555;
-                        margin-top: 30px;
-                        margin-bottom: 15px;
-                    }
-                    .form-group {
-                        margin-bottom: 20px;
-                    }
-                    label {
-                        display: block;
-                        margin-bottom: 5px;
-                        font-weight: bold;
-                        color: #666;
-                    }
-                    input[type="text"] {
-                        width: 100%;
-                        padding: 10px;
-                        border: 1px solid #ddd;
-                        border-radius: 4px;
-                        font-size: 14px;
-                    }
-                    textarea {
-                        width: 100%;
-                        padding: 10px;
-                        border: 1px solid #ddd;
-                        border-radius: 4px;
-                        font-size: 14px;
-                        resize: vertical;
-                        min-height: 100px;
-                    }
-                    .uid-list {
-                        margin-bottom: 10px;
-                    }
-                    .uid-item {
-                        display: flex;
-                        margin-bottom: 10px;
-                        align-items: center;
-                    }
-                    .uid-item input {
-                        flex: 1;
-                        margin-right: 10px;
-                    }
-                    .uid-item button {
-                        background-color: #dc3545;
-                        color: white;
-                        border: none;
-                        padding: 6px 12px;
-                        border-radius: 4px;
-                        cursor: pointer;
-                    }
-                    .uid-item button:hover {
-                        background-color: #c82333;
-                    }
-                    button {
-                        background-color: #007bff;
-                        color: white;
-                        border: none;
-                        padding: 10px 20px;
-                        border-radius: 4px;
-                        cursor: pointer;
-                        font-size: 14px;
-                    }
-                    button:hover {
-                        background-color: #0069d9;
-                    }
-                    button#add-uid {
-                        background-color: #28a745;
-                    }
-                    button#add-uid:hover {
-                        background-color: #218838;
-                    }
-                    .status {
-                        margin-top: 20px;
-                        padding: 10px;
-                        border-radius: 4px;
-                        text-align: center;
-                    }
-                    .success {
-                        background-color: #d4edda;
-                        color: #155724;
-                        border: 1px solid #c3e6cb;
-                    }
-                    .error {
-                        background-color: #f8d7da;
-                        color: #721c24;
-                        border: 1px solid #f5c6cb;
-                    }
-                </style>
-            </head>
-            <body>
-                <div class="container">
-                    <h1>微博爬虫配置</h1>
-                    
-                    <div id="status"></div>
-                    
-                    <h2>1. 微博用户ID配置</h2>
-                    <div class="form-group">
-                        <label>用户ID列表</label>
-                        <div class="uid-list" id="uid-list">
-                    ''' + uid_list_html + '''
-                        </div>
-                        <button id="add-uid">添加用户ID</button>
-                    </div>
-                    
-                    <h2>2. API密钥配置</h2>
-                    <div class="form-group">
-                        <label for="ark-api-key">豆包 API Key</label>
-                        <input type="text" id="ark-api-key" value="''' + ark_api_key + '''" placeholder="请输入豆包 API Key">
-                    </div>
-                    
-                    <h2>3. Cookie配置</h2>
-                    <div class="form-group">
-                        <label for="cookie">Cookie</label>
-                        <textarea id="cookie" placeholder="请输入微博Cookie">''' + cookie + '''</textarea>
-                    </div>
-                    <div class="form-group">
-                        <label for="user-agent">User-Agent</label>
-                        <input type="text" id="user-agent" value="''' + user_agent + '''" placeholder="请输入User-Agent">
-                    </div>
-                    
-                    <h2>4. 其他配置</h2>
-                    <div class="form-group">
-                        <label for="prompt">Prompt</label>
-                        <textarea id="prompt" placeholder="请输入微博回复提示文本">''' + prompt + '''</textarea>
-                    </div>
-                    <div class="form-group">
-                        <label for="sleep-time">Sleep Time</label>
-                        <input type="number" id="sleep-time" value="''' + str(sleep_time) + '''" placeholder="请输入爬虫休眠时间（秒）">
-                    </div>
-                    
-                    <button id="save-config">保存配置</button>
-                    <button id="start-spider" style="margin-left: 10px;">启动爬虫</button>
-                </div>
-                
-                <script>
-                    // 添加用户ID输入框
-                    document.getElementById('add-uid').addEventListener('click', function() {
-                        const uidList = document.getElementById('uid-list');
-                        const uidItem = document.createElement('div');
-                        uidItem.className = 'uid-item';
-                        uidItem.innerHTML = `
-                            <input type="text" placeholder="请输入用户ID">
-                            <button type="button" onclick="removeUid(this)">删除</button>
-                        `;
-                        uidList.appendChild(uidItem);
-                    });
-                    
-                    // 删除用户ID输入框
-                    function removeUid(button) {
-                        const uidItem = button.parentElement;
-                        uidItem.remove();
-                    }
-                    
-                    // 保存配置
-                    function saveConfig() {
-                        // 收集用户ID
-                        const uidInputs = document.querySelectorAll('.uid-item input');
-                        // 收集API Key
-                        const arkApiKey = document.getElementById('ark-api-key').value.trim();
-                        // 收集Prompt和Sleep Time
-                        const prompt = document.getElementById('prompt').value.trim();
-                        const sleepTime = document.getElementById('sleep-time').value.trim();
-
-                        const uidDict = {};
-                        uidInputs.forEach(input => {
-                            const uid = input.value.trim();
-                            
-                            if (uid) uidDict[uid] = "1";
-                        });
-                        
-                        const cookie = document.getElementById('cookie').value.trim();
-                        const userAgent = document.getElementById('user-agent').value.trim();
-                        
-                        // 构建配置数据
-                        const configData = {
-                            uid: uidDict,
-                            prompt: prompt,
-                            sleep_time: sleepTime ? parseInt(sleepTime) : 10,
-                            env: {
-                                'ARK_API_KEY': arkApiKey
-                            },
-                            cookie: {
-                                'Cookie': cookie,
-                                'User-Agent': userAgent
-                            }
-                        };
-                        
-                        return fetch('/save', {
-                            method: 'POST',
-                            headers: {
-                                'Content-Type': 'application/json'
-                            },
-                            body: JSON.stringify(configData)
-                        })
-                        .then(response => response.json());
-                    }
-
-                    // 保存配置按钮点击事件
-                    document.getElementById('save-config').addEventListener('click', function() {
-                        saveConfig()
-                        .then(data => {
-                            const status = document.getElementById('status');
-                            status.className = data.success ? 'status success' : 'status error';
-                            status.textContent = data.message;
-                            
-                            // 3秒后清空状态
-                            setTimeout(() => {
-                                status.textContent = '';
-                                status.className = '';
-                            }, 3000);
-                        })
-                        .catch(error => {
-                            const status = document.getElementById('status');
-                            status.className = 'status error';
-                            status.textContent = '保存失败：' + error.message;
-                        });
-                    });
-
-                    // 启动爬虫按钮点击事件
-                    document.getElementById('start-spider').addEventListener('click', function() {
-                        saveConfig()
-                        .then(data => {
-                            if (data.success) {
-                                // 保存成功后启动爬虫
-                                fetch('/start-spider', {
-                                    method: 'POST'
-                                })
-                                .then(response => response.json())
-                                .then(data => {
-                                    const status = document.getElementById('status');
-                                    status.className = data.success ? 'status success' : 'status error';
-                                    status.textContent = data.message;
-                                    
-                                    
-                                })
-                                .catch(error => {
-                                    const status = document.getElementById('status');
-                                    status.className = 'status error';
-                                    status.textContent = '启动爬虫失败：' + error.message;
-                                });
-                            } else {
-                                const status = document.getElementById('status');
-                                status.className = 'status error';
-                                status.textContent = '保存配置失败，无法启动爬虫';
-                            }
-                        })
-                        .catch(error => {
-                            const status = document.getElementById('status');
-                            status.className = 'status error';
-                            status.textContent = '保存配置失败：' + error.message;
-                        });
-                    });
-                </script>
-            </body>
-            </html>
-            '''
+            # 读取HTML模板文件
+            template_content = read_template('config.html')
+            
+            # 替换模板中的占位符
+            html = template_content.replace('{{uid_list_html}}', uid_list_html)
+            html = html.replace('{{ark_api_key}}', ark_api_key)
+            html = html.replace('{{cookie}}', cookie)
+            html = html.replace('{{user_agent}}', user_agent)
+            html = html.replace('{{prompt}}', prompt)
+            html = html.replace('{{sleep_time}}', str(sleep_time))
             
             self.wfile.write(html.encode('utf-8'))
+        
+        elif path == '/logs':
+            # 提供日志页面
+            self.send_response(200)
+            self.send_header('Content-type', 'text/html; charset=utf-8')
+            self.end_headers()
+            
+            # 读取HTML模板文件
+            template_content = read_template('logs.html')
+            
+            self.wfile.write(template_content.encode('utf-8'))
+        
+        elif path == '/api/logs':
+            # 提供日志数据
+            self.send_response(200)
+            self.send_header('Content-type', 'application/json')
+            self.end_headers()
+            
+            # 获取日志
+            logs = get_all_logs()
+            
+            # 返回日志数据
+            self.wfile.write(json.dumps({
+                'success': True,
+                'logs': logs
+            }).encode('utf-8'))
+        
+        elif path.startswith('/static/'):
+            # 提供静态文件
+            try:
+                # 获取静态文件相对路径
+                relative_path = path[7:]
+                # 构建静态文件路径
+                static_file_path = os.path.join(STATIC_DIR, *relative_path.split('/'))
+                
+                # 检查文件是否存在
+                if os.path.exists(static_file_path) and os.path.isfile(static_file_path):
+                    # 根据文件扩展名设置Content-type
+                    if static_file_path.endswith('.css'):
+                        content_type = 'text/css'
+                    elif static_file_path.endswith('.js'):
+                        content_type = 'application/javascript'
+                    else:
+                        content_type = 'application/octet-stream'
+                    
+                    # 读取并返回文件内容
+                    self.send_response(200)
+                    self.send_header('Content-type', content_type)
+                    self.end_headers()
+                    
+                    with open(static_file_path, 'rb') as f:
+                        self.wfile.write(f.read())
+                else:
+                    # 文件不存在
+                    self.send_response(404)
+                    self.end_headers()
+                    self.wfile.write(f'Not Found: {static_file_path}\nRelative path: {relative_path}'.encode('utf-8'))
+            except Exception as e:
+                # 发生错误
+                self.send_response(500)
+                self.end_headers()
+                self.wfile.write(f'Internal Server Error: {str(e)}\nSTATIC_DIR: {STATIC_DIR}'.encode('utf-8'))
         
         else:
             # 404错误
@@ -450,6 +270,7 @@ class ConfigHandler(http.server.SimpleHTTPRequestHandler):
                     'success': True,
                     'message': '配置保存成功！点击启动爬虫按钮开始运行。'
                 }).encode('utf-8'))
+                add_log('INFO', '配置文件已更新。')
                 
             except Exception as e:
                 # 返回错误响应
@@ -460,49 +281,16 @@ class ConfigHandler(http.server.SimpleHTTPRequestHandler):
                     'success': False,
                     'message': f'保存失败：{str(e)}'
                 }).encode('utf-8'))
+                add_log('ERROR', f'保存配置文件时出错：{str(e)}')
         
         elif path == '/start-spider':
             try:
-                # 重启爬虫服务
-                import subprocess
-                import sys
-                import os
-                import psutil
-                running = False
-                # 检查是否有爬虫进程在运行
-                spider_processes = []
-                for proc in psutil.process_iter(['pid', 'name', 'cmdline']):
-                    try:
-                        if proc.info['name'] == 'python.exe' or proc.info['name'] == 'python':
-                            cmdline = proc.info['cmdline']
-                            if cmdline and 'spider.py' in ' '.join(cmdline):
-                                spider_processes.append(proc)
-                    except:
-                        pass
+                global spider_running
                 
-                # 终止现有的爬虫进程
-                for proc in spider_processes:
-                    try:
-                        proc.terminate()  # 发送SIGTERM信号
-                        proc.wait(timeout=5)
-                        print(f'已终止爬虫进程 {proc.pid}')
-                    except:
-                        try:
-                            proc.kill()
-                        except:
-                            pass
-
-                # time.sleep(10)  # 等待3秒，确保进程完全终止
                 # 启动爬虫子进程（输出重定向到日志文件，避免管道阻塞）
-                spider_process = subprocess.Popen(
-                    [sys.executable, 'spider.py'],
-                    cwd=os.getcwd(),
-                    # 输出写入日志文件，而非PIPE（关键：避免子进程阻塞）
-                    # stdout=open('spider_stdout.log', 'a', encoding='utf-8'),
-                    # stderr=open('spider_stderr.log', 'a', encoding='utf-8'),
-                )
+                restart_spider()
                 
-                message = '重启' if running else '启动'
+                message = '重启' if spider_running else '启动'
                 # 返回成功响应
                 self.send_response(200)
                 self.send_header('Content-type', 'application/json')
@@ -510,8 +298,8 @@ class ConfigHandler(http.server.SimpleHTTPRequestHandler):
                 self.wfile.write(json.dumps({
                     'success': True,
                     'message': message + '成功！',
-                    'spider_pid': spider_process.pid
                 }).encode('utf-8'))
+                add_log('INFO', message + '爬虫启动成功！')
 
                 
             except Exception as e:
@@ -523,6 +311,22 @@ class ConfigHandler(http.server.SimpleHTTPRequestHandler):
                     'success': False,
                     'message': f'{message}爬虫失败：{str(e)}'
                 }).encode('utf-8'))
+                add_log('ERROR', f'{message}爬虫失败：{str(e)}')
+        
+        elif path == '/api/logs/clear':
+            # 清空日志
+            self.send_response(200)
+            self.send_header('Content-type', 'application/json')
+            self.end_headers()
+            
+            # 清空日志文件
+            clear_logs()
+            
+            # 返回成功响应
+            self.wfile.write(json.dumps({
+                'success': True,
+                'message': '日志清空成功！'
+            }).encode('utf-8'))
         
         else:
             # 404错误
@@ -540,14 +344,14 @@ def start_config_server():
     # 创建服务器
     httpd = socketserver.TCPServer(("", PORT), ConfigHandler)
     print(f"配置服务器已启动：http://localhost:{PORT}")
-    print("请在浏览器中打开上述链接进行配置")
-    print("添加UID后，点击保存配置按钮即可")
-    print("配置完成后直接关闭即可")
+    # 添加日志记录
+    add_log('INFO', f"配置服务已启动：http://localhost:{PORT}")
     try:
         # 自动打开浏览器
         webbrowser.open(f"http://localhost:{PORT}")
     except:
         pass
+
     
     try:
         # 启动服务器
@@ -557,5 +361,48 @@ def start_config_server():
     finally:
         httpd.server_close()
 
+def restart_spider():
+    """
+    重启爬虫服务
+    """
+
+    global spider_running,spider_thread
+    # 初始化爬虫线程
+    spider_thread = None
+    if spider_thread is None:
+        spider_thread = threading.Thread(target=start_spider,daemon=True)   
+        spider_thread.start()
+    else:
+        if spider_thread is not None and spider_thread.is_alive():
+            print('正在等待爬虫线程结束...')
+            add_log('INFO','正在等待爬虫线程结束...')
+            spider_running = False\
+                and spider_thread.join(timeout=10)
+                
+            if spider_thread.is_alive():
+                print('等待超时，强制终止爬虫线程')
+                add_log('WARNING','等待超时，强制终止爬虫线程')
+                spider_thread.terminate()
+        
+        print('重启新爬虫线程')
+        add_log('INFO','重启新爬虫线程')
+        spider_thread = threading.Thread(target=start_spider,daemon=True)   
+        spider_thread.start()
+
+def start_spider():
+    """
+    启动爬虫服务
+    """
+    global spider_running
+    spider_running = True
+    while spider_running:
+        try:
+            import spider
+            spider.main()
+        except Exception as e:
+            add_log('ERROR',f'爬虫运行出错：{e}')
+            print(f'爬虫运行出错：{e}')
+            time.sleep(5)  # 出错后等待5秒后重试
+        
 if __name__ == "__main__":
     start_config_server()

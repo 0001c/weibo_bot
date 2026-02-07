@@ -1,0 +1,61 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>数据配置</title>
+    <link rel="stylesheet" href="/static/css/style.css">
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>微博爬虫配置</h1>
+            <div class="header-buttons">
+                <button id="logs-btn">日志</button>
+            </div>
+        </div>
+        
+        <div id="status"></div>
+        
+        <h2>1. 微博用户ID配置</h2>
+        <div class="form-group">
+            <label>用户ID列表</label>
+            <div class="uid-list" id="uid-list">
+                {{uid_list_html}}
+            </div>
+            <button id="add-uid">添加用户ID</button>
+        </div>
+        
+        <h2>2. API密钥配置</h2>
+        <div class="form-group">
+            <label for="ark-api-key">豆包 API Key</label>
+            <input type="text" id="ark-api-key" value="{{ark_api_key}}" placeholder="请输入豆包 API Key">
+        </div>
+        
+        <h2>3. Cookie配置</h2>
+        <div class="form-group">
+            <label for="cookie">Cookie</label>
+            <textarea id="cookie" placeholder="请输入微博Cookie">{{cookie}}</textarea>
+        </div>
+        <div class="form-group">
+            <label for="user-agent">User-Agent</label>
+            <input type="text" id="user-agent" value="{{user_agent}}" placeholder="请输入User-Agent">
+        </div>
+        
+        <h2>4. 其他配置</h2>
+        <div class="form-group">
+            <label for="prompt">Prompt</label>
+            <textarea id="prompt" placeholder="请输入微博回复提示文本">{{prompt}}</textarea>
+        </div>
+        <div class="form-group">
+            <label for="sleep-time">Sleep Time</label>
+            <input type="number" id="sleep-time" value="{{sleep_time}}" placeholder="请输入爬虫休眠时间（秒）">
+        </div>
+        
+        <button id="save-config">保存配置</button>
+        <button id="start-spider" style="margin-left: 10px;">启动爬虫</button>
+    </div>
+    
+    <script src="/static/js/config.js"></script>
+</body>
+</html>
