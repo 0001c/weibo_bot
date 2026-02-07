@@ -17,6 +17,43 @@ function removeUid(button) {
     uidItem.remove();
 }
 
+// 显示弹窗
+function showToast(message, type = 'success') {
+    // 滚动到顶部，增加过度效果
+    window.scrollTo({
+        top: 0,
+        behavior: 'smooth'
+    });
+    
+    const toast = document.getElementById('toast');
+    const toastIcon = document.getElementById('toast-icon');
+    const toastMessage = document.getElementById('toast-message');
+    
+    // 设置图标和消息
+    const icons = {
+        success: '✓',
+        error: '✗',
+        info: 'ℹ'
+    };
+    
+    toastIcon.textContent = icons[type] || icons.success;
+    toastMessage.textContent = message;
+    
+    // 显示弹窗
+    toast.classList.add('show');
+    
+    // 3秒后自动隐藏
+    setTimeout(() => {
+        hideToast();
+    }, 3000);
+}
+
+// 隐藏弹窗
+function hideToast() {
+    const toast = document.getElementById('toast');
+    toast.classList.remove('show');
+}
+
 // 保存配置
 function saveConfig() {
     // 收集用户ID
@@ -70,20 +107,7 @@ function saveConfig() {
 document.getElementById('save-config').addEventListener('click', function() {
     saveConfig()
     .then(data => {
-        const status = document.getElementById('status');
-        status.className = data.success ? 'status success' : 'status error';
-        status.textContent = data.message;
-        
-        // 3秒后清空状态
-        setTimeout(() => {
-            status.textContent = '';
-            status.className = '';
-        }, 3000);
-    })
-    .catch(error => {
-        const status = document.getElementById('status');
-        status.className = 'status error';
-        status.textContent = '保存失败：' + error.message;
+        showToast(data.success ? '配置保存成功！✨' : '配置保存失败，请重试！⚠️', data.success ? 'success' : 'error');
     });
 });
 
@@ -92,21 +116,21 @@ document.getElementById('start-spider').addEventListener('click', function() {
     saveConfig()
     .then(data => {
         if (data.success) {
-            // 保存成功后启动爬虫
+             // 保存成功后启动爬虫
             fetch('/start-spider', {
                 method: 'POST'
             })
             .then(response => response.json())
             .then(data => {
-                const status = document.getElementById('status');
-                status.className = data.success ? 'status success' : 'status error';
-                status.textContent = data.message;
+                showToast(data.message, 'success');
+                // const status = document.getElementById('status');
+                // status.className = data.success ? 'status success' : 'status error';
+                // status.textContent = data.message;
             })
             .catch(error => {
-                const status = document.getElementById('status');
-                status.className = 'status error';
-                status.textContent = '启动爬虫失败：' + error.message;
+                showToast('启动爬虫失败，请检查配置！⚠️'+error.message, 'error');
             });
+            
         } else {
             const status = document.getElementById('status');
             status.className = 'status error';
@@ -114,9 +138,7 @@ document.getElementById('start-spider').addEventListener('click', function() {
         }
     })
     .catch(error => {
-        const status = document.getElementById('status');
-        status.className = 'status error';
-        status.textContent = '保存配置失败：' + error.message;
+        showToast('保存配置失败！⚠️'+error.message, 'error');
     });
 });
 

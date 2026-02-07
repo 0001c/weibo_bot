@@ -297,9 +297,9 @@ class ConfigHandler(http.server.SimpleHTTPRequestHandler):
                 self.end_headers()
                 self.wfile.write(json.dumps({
                     'success': True,
-                    'message': message + '成功！',
+                    'message': message + '成功！🚀',
                 }).encode('utf-8'))
-                add_log('INFO', message + '爬虫启动成功！')
+                add_log('INFO', message + '爬虫启动成功！🚀')
 
                 
             except Exception as e:

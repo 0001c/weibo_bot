@@ -5,31 +5,39 @@ import sys
 import time
 
 # 配置文件路径
-CONFIG_FILE = 'config.json'
-ENV_FILE = '.env'
-REQUIREMENTS_FILE = 'requirements.txt'
+CONFIG_FILE = 'Config/config.json'
+ENV_FILE = 'Config/.env'
+REQUIREMENTS_FILE = 'Config/requirements.txt'
 
 # 安装依赖项
 def create_docs():
     """
     创建示例文档
     """
-    with open('config.json', 'w', encoding='utf-8') as f:
-        json.dump({
-            "uid": {
-                "1234567890": "1",
-                "0987654321": "0"
-            }
-        }, f, ensure_ascii=False, indent=2)
+    # 如果config.json文件不存在，创建它
+    if not os.path.exists(CONFIG_FILE):
+        os.makedirs(os.path.dirname(CONFIG_FILE), exist_ok=True)
     
-    with open(".env.example", 'w', encoding='utf-8') as f:
-        f.write("ARK_API_KEY=your_ark_api_key_here\n")
+        with open(CONFIG_FILE, 'w', encoding='utf-8') as f:
+            json.dump({
+                "uid": {
+                    "1234567890": "1",
+                    "0987654321": "0"
+                }
+            }, f, ensure_ascii=False, indent=2)
     
-    with open("weibo_cookie.json.example", 'w', encoding='utf-8') as f:
-        f.write("""{
-                "Cookie": "your_weibo_cookie_here",
-                "User-Agent": "your_user_agent_here"
-            }""")
+    if not os.path.exists(ENV_FILE):
+        os.makedirs(os.path.dirname(ENV_FILE), exist_ok=True)
+        with open(ENV_FILE, 'w', encoding='utf-8') as f:
+            f.write("ARK_API_KEY=your_ark_api_key_here\n")
+    
+    if not os.path.exists("Config/weibo_cookie.json"):
+        os.makedirs(os.path.dirname("Config/weibo_cookie.json"), exist_ok=True)
+        with open("Config/weibo_cookie.json", 'w', encoding='utf-8') as f:
+            f.write("""{
+                    "Cookie": "your_weibo_cookie_here",
+                    "User-Agent": "your_user_agent_here"
+                }""")
 
 # 检查配置文件是否存在且有效
 def check_config():
