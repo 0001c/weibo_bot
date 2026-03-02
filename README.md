@@ -4,7 +4,7 @@
 
 
 <div align="center">
-<img width="1200" height="475" alt="GHBanner" src="https://github.com/0001c/weibo_bot/blob/main/%E5%B1%8F%E5%B9%95%E6%88%AA%E5%9B%BE_2-3-2026_18818_localhost.jpeg?raw=true" />
+<img width="1200" height="475" alt="GHBanner" src="https://github.com/0001c/weibo_bot/blob/main/%E5%B1%8F%E5%B9%95%E6%88%AA%E5%9B%BE_2-3-2026_18818_localhost.jpeg" />
 </div>
 
 
