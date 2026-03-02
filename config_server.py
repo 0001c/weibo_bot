@@ -18,9 +18,9 @@ print(f"TEMPLATE_DIR: {TEMPLATE_DIR}")
 from log_manager import add_log, get_all_logs, get_new_logs, clear_logs
 
 # 配置文件路径
-CONFIG_FILE = 'Config/config.json'
-ENV_FILE = 'Config/.env'
-COOKIE_FILE = 'Config/weibo_cookie.json'
+CONFIG_FILE = os.path.join(os.path.dirname(__file__), 'Config', 'config.json')
+ENV_FILE = os.path.join(os.path.dirname(__file__), 'Config', '.env')
+COOKIE_FILE = os.path.join(os.path.dirname(__file__), 'Config', 'weibo_cookie.json')
 
 # 读取模板文件
 def read_template(template_name):
@@ -309,9 +309,9 @@ class ConfigHandler(http.server.SimpleHTTPRequestHandler):
                 self.end_headers()
                 self.wfile.write(json.dumps({
                     'success': False,
-                    'message': f'{message}爬虫失败：{str(e)}'
+                    'message': f'重启爬虫失败：{str(e)}'
                 }).encode('utf-8'))
-                add_log('ERROR', f'{message}爬虫失败：{str(e)}')
+                add_log('ERROR', f'重启爬虫失败：{str(e)}')
         
         elif path == '/api/logs/clear':
             # 清空日志

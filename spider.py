@@ -9,7 +9,10 @@ from log_manager import add_log
 
 
 def get_header():
-    with open(r"Config\weibo_cookie.json",'r') as f:
+    # 使用os.path.dirname(__file__)获取脚本所在目录
+    script_dir = os.path.dirname(os.path.abspath(__file__))
+    cookie_file_path = os.path.join(script_dir, 'Config', 'weibo_cookie.json')
+    with open(cookie_file_path,'r') as f:
         header=json.loads(f.read())
         cookie = header['Cookie']
         header["x-xsrf-token"] = re.findall(r'XSRF-TOKEN=([^;]+)', cookie)[0]
@@ -46,7 +49,10 @@ def get_name(uid):
 
 # 初始化已有的mid
 def get_mids(uid):
-    file_path = r'Cache\weibo_mid_'+get_name(uid)+uid+'.json'
+    # 使用os.path.dirname(__file__)获取脚本所在目录
+    script_dir = os.path.dirname(os.path.abspath(__file__))
+    cache_dir = os.path.join(script_dir, 'Cache')
+    file_path = os.path.join(cache_dir, f'weibo_mid_{get_name(uid)}{uid}.json')
     if not os.path.exists(file_path):
         # 创建空的JSON文件
         with open(file_path,'w') as f:
@@ -89,7 +95,7 @@ def get_mids(uid):
 
 # 获取最新的mid
 def get_new_mid(uid):
-    file_path = r'Cache\weibo_mid_'+get_name(uid)+uid+'.json'
+    file_path = './Cache/weibo_mid_'+get_name(uid)+uid+'.json'
     mids_dict = get_mids(uid)
     mids = mids_dict['mids']
     max_id = mids_dict['max_id']
@@ -145,7 +151,7 @@ def generate_weibo_response(mid):
 
 def post_response(mid, comment=''):
 
-    add_log('INFO',f'正在回复{nickname}({uid})：{mid}')
+    add_log('INFO',f'正在回复{nickname}：{mid}')
     url = f'https://weibo.com/ajax/comments/create'
     # 如果没有提供comment，则调用AI生成回复
     if not comment:
@@ -172,9 +178,19 @@ def post_response(mid, comment=''):
         add_log('ERROR',f'回复mid：{mid}时发生错误：{str(e)}')
 
 def get_config():
-    with open(r'Config\config.json','r', encoding='utf-8') as f:
-        config = json.load(f)
-    return config
+    add_log('INFO',f"当前工作目录：{os.getcwd()}")
+    try:
+        # 使用os.path.dirname(__file__)获取脚本所在目录
+        script_dir = os.path.dirname(os.path.abspath(__file__))
+        config_path = os.path.join(script_dir, 'Config', 'config.json')
+        abs_path = os.path.abspath(config_path)
+        add_log('INFO',f"配置文件绝对路径：{abs_path}")
+        with open(config_path,'r', encoding='utf-8') as f:
+            config = json.load(f)   
+        return config
+    except Exception as e:
+        add_log('ERROR',f'读取配置文件时发生错误：{str(e)}')
+        return None
 
 def reset_uid(uid,enabled):
     config = get_config()
@@ -182,13 +198,19 @@ def reset_uid(uid,enabled):
     save_config(config)
     
 def save_config(config):
-    with open(r'Config\config.json','w', encoding='utf-8') as f:
+    # 使用os.path.dirname(__file__)获取脚本所在目录
+    script_dir = os.path.dirname(os.path.abspath(__file__))
+    config_path = os.path.join(script_dir, 'Config', 'config.json')
+    with open(config_path,'w', encoding='utf-8') as f:
         json.dump(config,f,ensure_ascii=False,indent=2)
 
 
 def main():
     while True:
         config = get_config()
+        if not config:
+            add_log('ERROR',f'读取配置文件失败，程序退出')
+            break
         uid_list = config['uid']
 
         for uid in uid_list.keys():

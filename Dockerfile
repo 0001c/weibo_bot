@@ -4,6 +4,8 @@ LABEL maintainer="gkk <gkgrby@163.com>"
 
 WORKDIR /app
 
+EXPOSE 18002
+
 RUN pip config set global.index-url https://pypi.tuna.tsinghua.edu.cn/simple \
     && pip config set global.trusted-host pypi.tuna.tsinghua.edu.cn
 

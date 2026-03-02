@@ -5,9 +5,9 @@ import sys
 import time
 
 # 配置文件路径
-CONFIG_FILE = 'Config/config.json'
-ENV_FILE = 'Config/.env'
-REQUIREMENTS_FILE = 'Config/requirements.txt'
+CONFIG_FILE = os.path.join(os.path.dirname(__file__), 'Config', 'config.json')
+ENV_FILE = os.path.join(os.path.dirname(__file__), 'Config', '.env')
+REQUIREMENTS_FILE = os.path.join(os.path.dirname(__file__), 'Config', 'requirements.txt')
 
 # 安装依赖项
 def create_docs():
@@ -33,7 +33,8 @@ def create_docs():
     
     if not os.path.exists("Config/weibo_cookie.json"):
         os.makedirs(os.path.dirname("Config/weibo_cookie.json"), exist_ok=True)
-        with open("Config/weibo_cookie.json", 'w', encoding='utf-8') as f:
+        cookie_file = os.path.join(os.path.dirname(__file__), 'Config', 'weibo_cookie.json')
+        with open(cookie_file, 'w', encoding='utf-8') as f:
             f.write("""{
                     "Cookie": "your_weibo_cookie_here",
                     "User-Agent": "your_user_agent_here"
